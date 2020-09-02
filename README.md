@@ -1,7 +1,7 @@
 SimPack
 ==============================
 [//]: # (Badges)
-[![Travis Build Status](https://travis-ci.com/alecpwills/SimPack.svg?branch=master)](https://travis-ci.com/alecpwills/SimPack)
+[![Build Status](https://travis-ci.com/alecpwills/simpack.svg?branch=master)](https://travis-ci.com/alecpwills/simpack)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/alecpwills/simpack.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/alecpwills/simpack/alerts/)
 
 
