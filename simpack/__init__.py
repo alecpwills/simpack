@@ -4,7 +4,7 @@ A variety of classes to analyze molecular dynamics trajectories
 """
 
 # Add imports here
-from .simpack import *
+#from . import simpack
 
 # Handle versioneer
 from ._version import get_versions
