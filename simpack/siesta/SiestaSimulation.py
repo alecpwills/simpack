@@ -1,4 +1,5 @@
 #TODO: Rewrite basically entire thing; I don't want to deal with pandas memory anymore
+from ..classes import Simulation
 
 class SiestaSimulation(Simulation):
     ''' Current required arguments:

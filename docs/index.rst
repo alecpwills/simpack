@@ -6,12 +6,18 @@
 Welcome to SimPack's documentation!
 =========================================================
 
+.. Contents
+.. ========
+
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
+   :numbered:
+   :hidden:
    :caption: Contents:
 
    getting_started
    api
+   ./docpages/softwares
 
 
 

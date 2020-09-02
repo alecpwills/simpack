@@ -4,4 +4,6 @@ API Documentation
 .. autosummary::
    :toctree: autosummary
 
-   simpack.canvas
+   simpack.gromacs.GromacsSimulation
+   simpack.lammps.LammpsSimulation
+   simpack.siesta.SiestaSimulation

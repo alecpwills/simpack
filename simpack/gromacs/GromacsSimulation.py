@@ -1,3 +1,10 @@
+"""
+GromacsSimulation.py
+====================
+
+A class for working with and analyzing GROMACS simulations.
+"""
+
 import sys, os, subprocess
 from .. import classes
 from .. import external
@@ -11,6 +18,41 @@ import pickle
 
 class GromacsSimulation(classes.Simulation):
     def __init__(self, **kwargs):
+        """
+        
+        Parameters
+        ----------
+        **kwargs : 
+            path : str, REQUIRED
+                the top directory containing all subdirectories which contain relevant simulation data.
+            box_len : float, REQUIRED
+                the length of one side of the (presumed cubic) box.
+            random_seed : bool, Optional, default : False
+                If True, this means that some parameter of the simulation was determined with random seeds.
+                NOTE: THIS ASSUMES THE DIRECTORY STRUCTURE IS path/random_seed_value/data...
+                Directories with 'py' in the name are ignored in the search.
+
+        Raises
+        ------
+        KeyError
+            If either of the required keywords are not specified, then a KeyError is raised.
+
+        Returns
+        -------
+        None.
+            No value is returned, but implemented __attr__ values are defaulted to empty dicts or specific values.
+            
+        IMPLEMENTED :
+            path, box_len :
+                the inputs for the required keys
+            gxy, edr, traj, antrav : 
+                {}
+            walklen : 
+                the total length of a single loop over os.walk(self.path)
+            random_seed : 
+                default : False
+
+        """
         req_keys = ['path', 'box_len']
         for k in req_keys:
             if k not in kwargs:
@@ -39,20 +81,79 @@ class GromacsSimulation(classes.Simulation):
         
         
     def itrajectory(self):
-        '''initialize the Universe with which we will analyze everything
-        gro yields masses, which might be useful'''
+        """
+        
+
+        Raises
+        ------
+        NotImplementedError
+            This is not yet implemented. There isn't a way to serialize and save an MDAnalysis.Universe object,
+            which is how a lot of future analysis will be done.
+
+        Returns
+        -------
+        None.
+
+        """
+        raise NotImplementedError("GromacsSimulation.iEDR() is not yet implemented.")
         gro = os.path.join(self.path, self.sim_name+'.gro')
         traj = os.path.join(self.path, self.sim_name+'.'+self.traj_end)
         self.Universe = MD.Universe(gro, traj)
     
         
     def iEDR(self):
-        ''' generate the dataframe containing the .edr file information associated
-        with self.path'''
+        """
+        
+
+        Raises
+        ------
+        NotImplementedError
+            This is not yet implemented. It requires Pandas as written, which I would like to avoid.
+
+        Returns
+        -------
+        None.
+
+        """
+        raise NotImplementedError("GromacsSimulation.iEDR() is not yet implemented.")
         edr_path = os.path.join(self.path, self.sim_name+'.edr')
-        self.EDR = panedr.edr_to_df(edr_path)
+        self.edr = panedr.edr_to_df(edr_path)
                 
     def colvar_bin(self, subdirs, outfile, nbin=50, start=10000):
+        """
+        
+
+        Parameters
+        ----------
+        subdirs : str
+            Subdirectory names for the simulations, if there are any. Current implementation basically assumes
+            self.random_seed and the existence of subdirectories in each, not tested elsewise.
+        outfile : str
+            The name of the file containing the colvar outputs.
+            In the case of GROMACS, a pullx file that contains pull distances between restrained atoms.
+            As implemented, assumes only two pull atoms so that the columns used are in correct correspondence.
+        nbin : int, optional
+            The number of bins to use for each subdirectory colvar binning. The default is 50.
+        start : int, optional
+            The timestep at which to start the filtering of colvar samples. The default is 10000.
+            NOTE: Default here is based on a LAMMPS-like simulation regime, where I do not do restarts
+            as LAMMPS trajectories are readily continued within a single script. For GROMACS, using checkpoint
+            files between equilibration phase and production phase, if only the colvar files for the production runs are
+            being used then this should be -1.
+
+        Returns
+        -------
+        None.
+        
+        Sets:
+            self.HE : list
+                The [histogram_values, histogram_edges] for a given seed/sub_dir
+            self.CHE : list
+                The [c_histogram_values, c_histogram_edges] (cumulative across random_seeds) for a given sub_dir
+            self.COLVAR : dict
+                The cumulative array containing all pull-coordinate values for each sub_dir across random_seeds
+
+        """
         hists = {sub:[] for sub in subdirs}
         edges = {sub:[] for sub in subdirs}
         cumulative = {sub:[] for sub in subdirs}
@@ -87,6 +188,43 @@ class GromacsSimulation(classes.Simulation):
     def run_wham(self, refs=np.zeros(0), dirname='pywham', metafile='MET.WHAM', numbins=200,
                  reffactor = 1.0, kspring = 250, temp = 300, tol = 1e-8, histmin = -1,
                  histmax = -1, output = 'PMF', returnarr = True):
+        """
+        
+
+        Parameters
+        ----------
+        refs : list (of floats), optional
+            A list of floats for which the subdirectories of the umbrella sampled simulation is referenced to. The default is np.zeros(0).
+        dirname : str, optional
+            A directory created to store the metadata files and the resulting WHAM calculation. The default is 'pywham'.
+        metafile : str, optional
+            The name that the WHAM metadata file is called. The default is 'MET.WHAM'.
+        numbins : int, optional
+            The number of bins each subdirectory value's collective variable is binned into. The default is 200.
+        reffactor : float, optional
+            A multiplicative factor that converts the string subdirectory name into the reference minima value, if needed. The default is 1.0.
+        kspring : float, optional
+            The spring constant restraining the atoms (in units of kcal/mol/Angstrom). The default is 250.
+        temp : float, optional
+            The temperature at which the WHAM calculation should be made. The default is 300.
+        tol : float, optional
+            The tolerance to which the iterative WHAM procedure should be carried out. The default is 1e-8.
+        histmin : float, optional
+            The minimum value at which the WHAM calculation sets as the domain of calculation. The default is -1.
+            If default, the minimum is set to the minimum value of the reference coordinate in the set of reference windows.
+        histmax : float, optional
+            The maximum value at which the WHAM calculation sets as the domain of calculation. The default is -1.
+            If default, the maximum is set to the maximum value of the reference coodinate in the set of reference windows.
+        output : str, optional
+            The filename for the output of the WHAM calculation. The default is 'PMF'.
+        returnarr : bool, optional
+            Whether or not to immediately assign self.PMF as the output of the WHAM calculation. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
         dirpath = os.path.join(self.path, dirname)
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
@@ -119,6 +257,30 @@ class GromacsSimulation(classes.Simulation):
     
     def igxy(self, fname, subdirs, subavg=False,
              tdyn=False, refds=np.empty(0), temp=300):
+        """
+        
+
+        Parameters
+        ----------
+        fname : str
+            The given output filename for a certain radial distribution function between atoms.
+        subdirs : list
+            The list of subdirectory names by which to create the dictionary of gxy[fname][subdir] RDF arrays.
+        subavg : bool, optional
+            Whether or not to average subdirectories in the dictionary along the random_seed values. The default is False.
+        tdyn : bool, optional
+            Whether or not to thermodynamically average the subdirectories across the values of the subdirectories. The default is False.
+            If True, then it requires a self.PMF value to use for the energy referencing, and sets the zero to the last value of the self.PMF array.
+        refds : list, optional
+            A list of umbrella sampling reference windows used to determing the indices to use for thermodynamically averaging. The default is np.empty(0).
+        temp : float, optional
+            The temperature used (in Kelvin) of the simulation in the beta-factor when thermodynamically averaging. The default is 300.
+
+        Returns
+        -------
+        None. Sets self.gxy[fname(+.tdyn if tdyn == True)]
+
+        """
         self.gxy[fname] = {sub:[] for sub in subdirs}
         w = os.walk(self.path)
         print('Initializing distributions from file: {} ({})'.format(fname, self.path))

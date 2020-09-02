@@ -1,3 +1,10 @@
+"""
+LammpsSimulation.py
+===================
+
+A class for working with and analyzing LAMMPS simulations.
+"""
+
 import sys, os, subprocess
 from .. import classes
 from .. import external
