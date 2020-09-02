@@ -1,8 +1,9 @@
 SimPack
 ==============================
 [//]: # (Badges)
-[![Travis Build Status](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/SimPack.svg?branch=master)](https://travis-ci.com/REPLACE_WITH_OWNER_ACCOUNT/SimPack)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/SimPack/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/SimPack/branch/master)
+[![Travis Build Status](https://travis-ci.com/alecpwills/SimPack.svg?branch=master)](https://travis-ci.com/alecpwills/SimPack)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/alecpwills/simpack.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/alecpwills/simpack/alerts/)
+
 
 
 A variety of classes to analyze molecular dynamics trajectories
