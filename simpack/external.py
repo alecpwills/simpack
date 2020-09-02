@@ -7,6 +7,7 @@ as well as more "exotic" file read-ins not self-contained in the class call
 """
 
 import os, sys, subprocess
+import numpy as np
 
 def pmf_read(rootdir, pmffile):
     arr = np.loadtxt(os.path.join(rootdir, pmffile), comments=['#', '@'])
