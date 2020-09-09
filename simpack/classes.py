@@ -5,6 +5,7 @@ A variety of classes to analyze molecular dynamics trajectories
 Handles the primary functions
 """
 from abc import ABC, abstractmethod
+import os
 import pickle
 
 #TODO: Update base simulation to be more consistent with the sbu-ccmp-tools one I did
@@ -13,13 +14,12 @@ import pickle
 class Simulation(ABC):
     @abstractmethod
     def __init__(self):
-        pass
+        self.path = ''
     
     @abstractmethod
     def itrajectory():
         pass
     
-    @abstractmethod                
     def save(self, overwrite = True):
         pklp = os.path.join(self.path, 'self.pkl')
         #if file exists, assert we want to overwrite
@@ -31,7 +31,6 @@ class Simulation(ABC):
         with open(pklp, 'wb') as f:
             pickle.dump((keys, save_dict), f)
 
-    @abstractmethod
     def load(self):
         with open(os.path.join(self.path, 'self.pkl'), 'rb') as f:
             keys, load_dict = pickle.load(f)

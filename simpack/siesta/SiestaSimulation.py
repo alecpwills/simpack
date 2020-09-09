@@ -1,5 +1,18 @@
 #TODO: Rewrite basically entire thing; I don't want to deal with pandas memory anymore
 from ..classes import Simulation
+from ..analysis import pbcwrap
+import os, sys, subprocess
+import numpy as np
+import pandas as pd
+import pickle
+import MDAnalysis as MD
+from tqdm import tqdm
+from scipy import fftpack, integrate
+from scipy.optimize import leastsq
+import tess
+from collections import Counter
+import MDAnalysis.analysis.rdf as MDrdf
+
 
 class SiestaSimulation(Simulation):
     ''' Current required arguments:
@@ -843,7 +856,7 @@ class SiestaSimulation(Simulation):
                       'netdp':[]}
         for ts in tqdm(self.Universe.trajectory):
             #center on a1
-            x = wrap(ts.positions - ts.positions[a1], self.box_len)
+            x = pbcwrap(ts.positions - ts.positions[a1], self.box_len)
             f1 = ts.forces[a1]
             f2 = ts.forces[a2]
             fn = f1+f2

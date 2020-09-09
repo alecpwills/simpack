@@ -11,9 +11,9 @@ from .. import external
 from .. import analysis
 import MDAnalysis as MD
 from tqdm import tqdm
+import pandas as pd
 import panedr
 import numpy as np
-import pickle
 
 
 class GromacsSimulation(classes.Simulation):
@@ -101,7 +101,7 @@ class GromacsSimulation(classes.Simulation):
         self.Universe = MD.Universe(gro, traj)
     
         
-    def iEDR(self):
+    def iEDR(self, edrfile):
         """
         
 
@@ -115,9 +115,28 @@ class GromacsSimulation(classes.Simulation):
         None.
 
         """
-        raise NotImplementedError("GromacsSimulation.iEDR() is not yet implemented.")
-        edr_path = os.path.join(self.path, self.sim_name+'.edr')
-        self.edr = panedr.edr_to_df(edr_path)
+        w = os.walk(self.path)
+        print('Initializing edr from file: {} ({})'.format(edrfile, self.path))
+        dfs = []
+        for path, dirs, files in tqdm(w, total=self.walklen, file=sys.stdout):
+            if edrfile in files:
+                fpath = os.path.join(path, edrfile)
+                df = panedr.edr_to_df(fpath)
+                csub = path.split('/')[-1]
+                sub = path.split('/')[-2]
+                df['SUB'] = float(sub)
+                df['CSUB'] = float(csub)
+                dfs.append(df)
+            else:
+                continue
+
+        edrdf = pd.concat(dfs)
+        edrarr = edrdf.values
+        edrcols = edrdf.columns
+        del edrdf
+        
+        self.EDR = edrarr
+        self.EDRC = edrcols
                 
     def colvar_bin(self, subdirs, outfile, nbin=50, start=10000):
         """
