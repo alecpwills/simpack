@@ -101,7 +101,7 @@ class GromacsSimulation(classes.Simulation):
         self.Universe = MD.Universe(gro, traj)
     
         
-    def iEDR(self, edrfile):
+    def iEDR(self, edrfile, egrps=False):
         """
         
 
@@ -124,7 +124,11 @@ class GromacsSimulation(classes.Simulation):
                 df = panedr.edr_to_df(fpath)
                 csub = path.split('/')[-1]
                 sub = path.split('/')[-2]
-                df['SUB'] = float(sub)
+                try: #try to turn into float
+                    df['SUB'] = float(sub)
+                except ValueError:
+                    #if sub is not a float, then there are no constraint directories
+                    print('No constraint directories.')
                 df['CSUB'] = float(csub)
                 dfs.append(df)
             else:
@@ -134,11 +138,14 @@ class GromacsSimulation(classes.Simulation):
         edrarr = edrdf.values
         edrcols = edrdf.columns
         del edrdf
-        
-        self.EDR = edrarr
-        self.EDRC = edrcols
+        if egrps:
+            self.EGRPS = edrarr
+            self.EGRPSC = edrcols
+        else:
+            self.EDR = edrarr
+            self.EDRC = edrcols
                 
-    def colvar_bin(self, subdirs, outfile, nbin=50, start=10000):
+    def colvar_bin(self, subdirs, outfile, nbin=50, start=10000, verbose=False):
         """
         
 
@@ -159,6 +166,8 @@ class GromacsSimulation(classes.Simulation):
             as LAMMPS trajectories are readily continued within a single script. For GROMACS, using checkpoint
             files between equilibration phase and production phase, if only the colvar files for the production runs are
             being used then this should be -1.
+        verbose : bool, optional
+            Whether or not to print the paths/files found as the walk happens.
 
         Returns
         -------
@@ -182,23 +191,33 @@ class GromacsSimulation(classes.Simulation):
         print('Initializing colvar sampling from file: {} ({})'.format(outfile, self.path))
         for path, dirs, files in tqdm(w, total=self.walklen, file=sys.stdout):
             if outfile in files:
+                if verbose:
+                    print('{} found in {}'.format(outfile, path))
                 fpath = os.path.join(path, outfile)
                 arr = np.loadtxt(fpath, comments=['#','@'])
                 arr = arr[arr[:, 0] > start]
                 bins = np.linspace(arr[:, 1].min(), arr[:, 1].max(), num=nbin)
                 h, e = np.histogram(arr[:, 1], bins)
                 csub = path.split('/')[-1]
+                if verbose:
+                    print("CSUB: {}".format(csub))
                 hists[csub].append(h)
                 edges[csub].append(e)
                 cumulative[csub].append(arr[:, 1])
+                if verbose:
+                    print('C[CSUB] LEN: {}'.format(len(cumulative[csub])))
+                    print('C[CSUB] ARR.SHAPE: {}'.format(arr[:, 1].shape))
         for sub in subdirs:
-            carr = np.concatenate(cumulative[sub])
-            cumulative[sub] = carr
-            bins = np.linspace(carr.min(), carr.max(), num=nbin)
-            ch, ce = np.histogram(carr, bins)
-            chists[sub] = ce
-            cedges[sub] = ch
-        
+            try:
+                carr = np.concatenate(cumulative[sub])
+                cumulative[sub] = carr
+                bins = np.linspace(carr.min(), carr.max(), num=nbin)
+                ch, ce = np.histogram(carr, bins)
+                chists[sub] = ce
+                cedges[sub] = ch
+            except ValueError:
+                print("No arrays found for {}. Check simulation results.".format(sub))
+            
         self.HE = [hists, edges]
         self.CHE = [chists, cedges]
         self.COLVAR = cumulative
