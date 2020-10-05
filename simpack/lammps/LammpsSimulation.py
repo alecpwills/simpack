@@ -82,6 +82,60 @@ class LammpsSimulation(classes.Simulation):
         self.HE = [hists, edges]
         self.CHE = [chists, cedges]
         self.COLVAR = cumulative
+        
+    def colvar2d_bin(self, subdirsx, subdirsy, outfile, nbinx=50, nbiny=50, start=10000):
+        #document. this assumes the y colvar is outer directory, inner directory is x colvar
+        histsy = {suby:[] for suby in subdirsy}
+        edgesy = {suby:[] for suby in subdirsy}
+        cumulativey = {suby:[] for suby in subdirsy}
+        chistsy = {suby:[] for suby in subdirsy}
+        cedgesy = {suby:[] for suby in subdirsy}
+        histsx = {subx:[] for subx in subdirsx}
+        edgesx = {subx:[] for subx in subdirsx}
+        cumulativex = {subx:[] for subx in subdirsx}
+        chistsx = {subx:[] for subx in subdirsx}
+        cedgesx = {subx:[] for subx in subdirsx}
+        cumulative = {suby:{} for suby in subdirsy}
+        w = os.walk(self.path)
+        print('Initializing colvar sampling from file: {} ({})'.format(outfile, self.path))
+        for path, dirs, files in tqdm(w, total=self.walklen, file=sys.stdout):
+            if outfile in files:
+                fpath = os.path.join(path, outfile)
+                arr = np.loadtxt(fpath, comments=['#','@'])
+                arr = arr[arr[:, 0] > start]
+                binsx = np.linspace(arr[:, 1].min(), arr[:, 1].max(), num=nbinx)
+                hx, ex = np.histogram(arr[:, 1], binsx)
+                binsy = np.linspace(arr[:, 2].min(), arr[:, 2].max(), num=nbiny)
+                hy, ey = np.histogram(arr[:, 2], binsy)
+                csubx = path.split('/')[-1]
+                histsx[csubx].append(hx)
+                edgesx[csubx].append(ex)
+                cumulativex[csubx].append(arr[:, 1])
+                csuby = path.split('/')[-2]
+                histsy[csuby].append(hy)
+                edgesy[csuby].append(ey)
+                cumulativey[csuby].append(arr[:, 2])
+                cumulative[csuby][csubx] = arr
+        for suby in subdirsy:
+            carry = np.concatenate(cumulativey[suby])
+            binsy = np.linspace(carry.min(), carry.max(), num=nbiny)
+            chy, cey = np.histogram(carry, binsy)
+            chistsy[suby] = cey
+            cedgesy[suby] = chy
+        for subx in subdirsx:
+            carrx = np.concatenate(cumulativex[subx])
+            binsx = np.linspace(carrx.min(), carrx.max(), num=nbinx)
+            chx, cex = np.histogram(carrx, binsx)
+            chistsx[subx] = cex
+            cedgesx[subx] = chx
+            
+
+        
+        self.HEX = [histsx, edgesx]
+        self.CHEX = [chistsx, cedgesx]
+        self.HEY = [histsy, edgesy]
+        self.CHEY = [chistsy, cedgesy]
+        self.COLVAR2D = cumulative
     
             
     def run_wham(self, refs=np.zeros(0), dirname='pywham', metafile='MET.WHAM', numbins=200,
@@ -116,6 +170,92 @@ class LammpsSimulation(classes.Simulation):
         os.chdir(cwd)
         retarr = external.wham_command(dirpath, metafile, histmin, histmax, numbins, temp, tol)
         self.PMF = retarr
+        
+    def run_wham2d(self, refsx=np.zeros(0), refsy=np.zeros(0), dirname='pywham', metafile='MET.WHAM2D', numbinsx=200,
+                   numbinsy=200, reffactorx=1.0, reffactory=1.0, kspringx = 250, kspringy = 250, temp=300, tol=1e-8, histmin=-1,
+                   histmax=-1, output='PMF2D', returnarr=True):
+        dirpath = os.path.join(self.path, dirname)
+        if not os.path.isdir(dirpath):
+            os.mkdir(dirpath)
+        cwd = os.getcwd()
+        os.chdir(dirpath)
+        met = os.path.join(dirpath, metafile)
+        subprocess.check_output('touch {}'.format(met), shell=True)
+        klisty = sorted(list(self.COLVAR2D.keys()))
+        klistx = sorted(list(self.COLVAR2D[klisty[0]].keys()))
+        if histmin == -1:
+            histminy = min([self.COLVAR2D[klisty[0]][ikx][:, 2].min() for ikx in klistx])
+            histminx = min([self.COLVAR2D[iky][klistx[0]][:, 1].min() for iky in klisty])
+        if histmax == -1:
+            histmaxy = max([self.COLVAR2D[klisty[-1]][ikx][:, 2].max() for ikx in klistx])
+            histmaxx = max([self.COLVAR2D[iky][klistx[-1]][:, 1].max() for iky in klisty])
+        with open(met, 'w') as file:    
+            for iky in range(len(klisty)):
+                for ikx in range(len(klistx)):
+                    if refsx.shape[0] != 0:
+                        krx = refsx[ikx]
+                    if refsy.shape[0] != 0:
+                        kry = refsy[iky]
+                    else:
+                        krx = klistx[ikx]
+                        kry = klisty[iky]
+                    tf = '{}_{}.wham.tmp'.format(krx, kry)
+                    krefx = str(float(krx)*reffactorx)
+                    krefy = str(float(kry)*reffactory)
+                    np.savetxt(tf, self.COLVAR2D[kry][krx])
+                    file.write(os.path.join(dirpath, tf)+' '+krefx+' '+krefy+' '+str(kspringx)+' '+str(kspringy)+' '+'\n')
+                
+        os.chdir(cwd)
+        retarr = external.wham2d_command(dirpath, metafile, histminx, histmaxx, numbinsx,
+                                         histminy, histmaxy, numbinsy, temp, tol, output=output)
+        self.PMF = retarr
+        
+    def run_wham2d_to1d(self, refsx=np.zeros(0), refsy=np.zeros(0), dirname='pywham', metafile='MET.WHAM2D1D', numbins=200,
+               reffactor=1.0, kspring = 250, temp=300, tol=1e-8, histmin=-1,
+               histmax=-1, output='PMF2D1D', returnarr=True, reduce='y'):
+        dirpath = os.path.join(self.path, dirname)
+        if not os.path.isdir(dirpath):
+            os.mkdir(dirpath)
+        cwd = os.getcwd()
+        os.chdir(dirpath)
+        met = os.path.join(dirpath, metafile)
+        subprocess.check_output('touch {}'.format(met), shell=True)
+        klisty = sorted(list(self.COLVAR2D.keys()))
+        klistx = sorted(list(self.COLVAR2D[klisty[0]].keys()))
+        if histmin == -1:
+            if reduce == 'x':
+                histmin = min([self.COLVAR2D[klisty[0]][ikx][:, 2].min() for ikx in klistx])
+            elif reduce == 'y':
+                histmin = min([self.COLVAR2D[iky][klistx[0]][:, 1].min() for iky in klisty])
+        if histmax == -1:
+            if reduce == 'x':
+                histmax = max([self.COLVAR2D[klisty[-1]][ikx][:, 2].max() for ikx in klistx])
+            elif reduce == 'y':
+                histmax = max([self.COLVAR2D[iky][klistx[-1]][:, 1].max() for iky in klisty])
+        if reduce == 'x':
+            refs = refsy
+            klist = klisty
+        elif reduce == 'y':
+            refs = refsx
+            klist = klistx
+        with open(met, 'w') as file:
+            for ik in range(len(klist)):
+                if refs.shape[0] != 0:
+                    kr = refs[ik]
+                else:
+                    kr = klist[ik]
+                tf = '{}_{}.wham.tmp'.format(kr, reduce)
+                kref = str(float(kr)*reffactor)
+                if reduce == 'x':
+                    np.savetxt(tf, np.concatenate([self.COLVAR2D[kr][ikx] for ikx in klistx])[:, [0, 2]])
+                elif reduce == 'y':
+                    np.savetxt(tf, np.concatenate([self.COLVAR2D[iky][kr] for iky in klisty])[:, [0, 1]])
+                file.write(os.path.join(dirpath, tf)+' '+kref+' '+str(kspring)+'\n')
+                
+        os.chdir(cwd)
+        retarr = external.wham_command(dirpath, metafile, histmin, histmax, numbins, temp, tol, output=output)
+        self.PMF2D1D = retarr
+
     
     def igxy(self, fname, subdirs, subavg=False,
              tdyn=False, refds=np.empty(0), temp=300):
