@@ -100,6 +100,12 @@ class LammpsSimulation(classes.Simulation):
         print('Initializing colvar sampling from file: {} ({})'.format(outfile, self.path))
         for path, dirs, files in tqdm(w, total=self.walklen, file=sys.stdout):
             if outfile in files:
+                csuby = path.split('/')[-2]
+                csubx = path.split('/')[-1]
+                if csuby not in subdirsy:
+                    continue
+                if csubx not in subdirsx:
+                    continue
                 fpath = os.path.join(path, outfile)
                 arr = np.loadtxt(fpath, comments=['#','@'])
                 arr = arr[arr[:, 0] > start]
@@ -107,11 +113,9 @@ class LammpsSimulation(classes.Simulation):
                 hx, ex = np.histogram(arr[:, 1], binsx)
                 binsy = np.linspace(arr[:, 2].min(), arr[:, 2].max(), num=nbiny)
                 hy, ey = np.histogram(arr[:, 2], binsy)
-                csubx = path.split('/')[-1]
                 histsx[csubx].append(hx)
                 edgesx[csubx].append(ex)
                 cumulativex[csubx].append(arr[:, 1])
-                csuby = path.split('/')[-2]
                 histsy[csuby].append(hy)
                 edgesy[csuby].append(ey)
                 cumulativey[csuby].append(arr[:, 2])
