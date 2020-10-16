@@ -3,6 +3,27 @@ from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
 
+def pmf2d_int_1d(pmf, axis, temperature, units='kcal/mol'):
+    vs = np.unique(pmf[:, axis])
+    ps = []
+    if units == 'kcal/mol':
+        kb = 0.001985875 #kcal/mol/K
+    elif units == 'eV':
+        kb = 8.617333262145e-5 #eV/K
+    elif units == 'kj/mol':
+        kb = 0.008314463 #kj/mol/K
+    beta = 1/(kb*temperature)
+    for iv in vs:
+        iy = pmf[pmf[:, axis] == iv]
+        boltz = np.exp(-beta*iy[:, 2])
+        nums = np.sum(iy[:, 2]*boltz)
+        dens = np.sum(boltz)
+        ps.append(nums/dens)
+    
+    ps = np.array(ps)
+    return (vs, ps)
+
+
 def gauss_hist_fit(binvals, nbins, cgreater = 0):
     counts, edges = np.histogram(binvals, bins=nbins)
     fitfunc = lambda p, x: p[0]*np.exp(-0.5*((x-p[1])/p[2])**2)
