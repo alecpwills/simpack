@@ -3,15 +3,49 @@ from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
 
-def pmf2d_int_1d(pmf, axis, temperature, units='kcal/mol'):
-    vs = np.unique(pmf[:, axis])
-    ps = []
+def kB_units(units):
     if units == 'kcal/mol':
         kb = 0.001985875 #kcal/mol/K
     elif units == 'eV':
         kb = 8.617333262145e-5 #eV/K
     elif units == 'kj/mol':
         kb = 0.008314463 #kj/mol/K
+    return kb
+
+# def ka_ke(dists, energies, temps, xsi, ysi, r_u=6.0, units='kcal/mol',
+#           freeE = True):
+#     #10.1063/1.470707
+#     #eqs. 13, 19
+#     #importantly, Ke (19) if equilibrium constant b/w states ~rho_ssip/rho_cip
+#     kb = kB_units(units)
+#     if freeE:
+#         #DOI:10.1073/pnas.0610945104
+#         #W(r) free energy = w(r) pmf -2 k T ln r        
+#         #so if given the free energy (i.e. from WHAM/Meta),
+#         #move entropic contribution to get actual PMF
+#         pmfys = energies + 2*kb*temps*np.log(dists)
+#     else:
+#         pmfys = energies
+#     gr = np.exp(-pmfys/(kb*temps))
+#     gri = interpolate.CubicSpline(x=dists, y=gr)
+#     gry = gri(xsi)
+
+#     # bs = pmf_barrier(xsi, ysi)
+#     r_ts = bs[1][0]
+#     r_ts_i = np.where(xsi==r_ts)[0][0]
+#     print(r_ts, r_ts_i)
+#     ka = 4*np.pi*integrate.simps(y=gry[r_ts_i:]*xsi[r_ts_i:]**2,
+#                                  x=xsi[r_ts_i:])
+#     kd = 4*np.pi*integrate.simps(y=gry[:r_ts_i]*xsi[:r_ts_i]**2,
+#                                  x=xsi[:r_ts_i])
+#     ke = ka/kd
+#     return ka, ke
+
+
+def pmf2d_int_1d(pmf, axis, temperature, units='kcal/mol'):
+    vs = np.unique(pmf[:, axis])
+    ps = []
+    kb = kB_units(units)
     beta = 1/(kb*temperature)
     for iv in vs:
         iy = pmf[pmf[:, axis] == iv]
@@ -151,26 +185,26 @@ def pmf(forces, dists, temps, correct=True, interp='pmf'):
     #which sign to integrate? integrating the negative in dUdr yields wrong sign?
     if forces[0] < 0:
         forces = -forces
-    # eq 9 in my PMF paper:
-    # dU/dr = -f(r) + 2kT/r
-    dUdr = -(forces - 2*kb*temps/dists) if correct else -forces
-    # if correct == True:
-        # eq 9 in my PMF paper:
-        # dU/dr = -f(r) + 2kT/r
-        # dUdr = -(forces - 2*kb*temps/dists)
+    dUdr = -forces
     if interp == 'pmf':
         pmf_ys = integrate.cumtrapz(y=dUdr, x=dists)
+        if correct:
+            #DOI:10.1073/pnas.0610945104
+            #W(r) free energy = w(r) pmf -2 k T ln r        
+            pmf_ys -= 2*kb*temps*np.log(dists)
         pmf_int = interpolate.CubicSpline(x=dists[1:], y=pmf_ys)
         pmf_int_ys = pmf_int(xs)
     elif interp == 'force':
         fint = interpolate.CubicSpline(x=dists, y=dUdr)
-#        pmf = integrate.cumtrapz(y=fint(xs), x=xs)
-#        pmf_ys = pmf
-#        pmf_int_ys = pmf
         pmfint = fint.antiderivative()
         pmf_ys = pmfint(dists)
         pmf_int_ys = pmfint(xs)
-        
+        if correct:
+            #DOI:10.1073/pnas.0610945104
+            #W(r) free energy = w(r) pmf -2 k T ln r        
+            pmf_ys -= 2*kb*temps*np.log(dists)
+            pmf_int_ys -= 2*kb*temps.mean()*np.log(xs)
+
     return(xs, pmf_ys, pmf_int_ys)
 
 def pmf_pm(forces, errors, ds, temp, correct=False, interp='force'):
