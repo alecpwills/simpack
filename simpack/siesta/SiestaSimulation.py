@@ -1,6 +1,6 @@
 #TODO: Rewrite basically entire thing; I don't want to deal with pandas memory anymore
 from ..classes import Simulation
-from ..analysis import pbcwrap
+from ..analysis.analysis import pbcwrap
 import os, sys, subprocess
 import numpy as np
 import pandas as pd

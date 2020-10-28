@@ -3,6 +3,14 @@ from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
 
+
+def weighted_hist(xs, ws, bins=500, countsel=100):
+    sums, edges = np.histogram(xs, bins=bins, weights=ws)
+    counts, _ = np.histogram(xs, bins=bins)
+    inds = np.where(counts > countsel)[0]
+    return (edges[inds], sums[inds]/counts[inds])
+
+
 def kB_units(units):
     if units == 'kcal/mol':
         kb = 0.001985875 #kcal/mol/K

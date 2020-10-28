@@ -295,7 +295,7 @@ class LammpsSimulation(classes.Simulation):
             numsd = np.sum([boltzmann[i]*self.gxy[fname][klist[i]][1] for i in range(len(klist))], axis=0)
             self.gxy[fname+'.tdyn'] = (num/Z, numsd/Z)
         
-    def ithermo(self, fname, subdirs, columns, subavg=False, seedavg=False,
+    def ithermo(self, fname, subdirs, columns, subavg=False, seedavg=False, colvarfile=None,
              tdyn=False, keyname=None, refds=np.empty(0), temp=300, fprojRead=False, top=None, **kwargs):
         self.thermoc = columns
         if not keyname:
@@ -336,6 +336,13 @@ class LammpsSimulation(classes.Simulation):
                     arr = self.ithermoForceProjU(top, ffile, xfile, dt=dt, a1=a1, a2=a2)
                 else:
                     arr = np.loadtxt(fpath, comments=['#','@'])
+                if colvarfile:
+                    cvp = os.path.join(path, colvarfile)
+                    carr = np.loadtxt(cvp, comments=['#', '@'])
+                    arr = np.insert(arr, arr.shape[1], np.nan, 1)
+                    mask1 = np.in1d(arr[:, 0], carr[:, 0])
+                    mask2 = np.in1d(carr[:, 0], arr[:, 0])
+                    arr[mask1, -1] = carr[mask2, 1]
                 self.thermo[dctkey][csub].append((seed, arr))
         if seedavg:
             for k in self.thermo[dctkey].keys():
