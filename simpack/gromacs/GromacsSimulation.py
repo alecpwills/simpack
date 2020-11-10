@@ -101,7 +101,7 @@ class GromacsSimulation(classes.Simulation):
         self.Universe = MD.Universe(gro, traj)
     
         
-    def iEDR(self, edrfile, egrps=False):
+    def iEDR(self, subdirs, edrfile, egrps=False, dfs=True):
         """
         
 
@@ -117,7 +117,10 @@ class GromacsSimulation(classes.Simulation):
         """
         w = os.walk(self.path)
         print('Initializing edr from file: {} ({})'.format(edrfile, self.path))
-        dfs = []
+        if dfs:
+            dfs =  {sub:[] for sub in subdirs}
+        else:
+            dfs = []
         for path, dirs, files in tqdm(w, total=self.walklen, file=sys.stdout):
             if edrfile in files:
                 fpath = os.path.join(path, edrfile)
@@ -130,20 +133,23 @@ class GromacsSimulation(classes.Simulation):
                     #if sub is not a float, then there are no constraint directories
                     print('No constraint directories.')
                 df['CSUB'] = float(csub)
-                dfs.append(df)
+                dfs[csub].append(df)
             else:
                 continue
-
-        edrdf = pd.concat(dfs)
-        edrarr = edrdf.values
-        edrcols = edrdf.columns
-        del edrdf
-        if egrps:
-            self.EGRPS = edrarr
-            self.EGRPSC = edrcols
+        if dfs:
+            self.EDR = dfs
+            dfs = {sub:pd.concat(dfs[sub]) for sub in subdirs}
         else:
-            self.EDR = edrarr
-            self.EDRC = edrcols
+            edrdf = pd.concat(dfs)
+            edrarr = edrdf.values
+            edrcols = edrdf.columns
+            del edrdf
+            if egrps:
+                self.EGRPS = edrarr
+                self.EGRPSC = edrcols
+            else:
+                self.EDR = edrarr
+                self.EDRC = edrcols
                 
     def colvar_bin(self, subdirs, outfile, nbin=50, start=10000, verbose=False):
         """

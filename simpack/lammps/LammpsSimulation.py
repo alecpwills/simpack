@@ -296,7 +296,8 @@ class LammpsSimulation(classes.Simulation):
             self.gxy[fname+'.tdyn'] = (num/Z, numsd/Z)
         
     def ithermo(self, fname, subdirs, columns, subavg=False, seedavg=False, colvarfile=None,
-             tdyn=False, keyname=None, refds=np.empty(0), temp=300, fprojRead=False, top=None, **kwargs):
+             tdyn=False, keyname=None, refds=np.empty(0), temp=300, fprojRead=False, top=None, verbose=False,
+             **kwargs):
         self.thermoc = columns
         if not keyname:
             dctkey = fname
@@ -342,7 +343,18 @@ class LammpsSimulation(classes.Simulation):
                     arr = np.insert(arr, arr.shape[1], np.nan, 1)
                     mask1 = np.in1d(arr[:, 0], carr[:, 0])
                     mask2 = np.in1d(carr[:, 0], arr[:, 0])
-                    arr[mask1, -1] = carr[mask2, 1]
+                    if verbose:
+                        print("{}: shape={}, mask1 shape={}, mask2 shape={}".format(cvp, carr.shape, mask1.shape, mask2.shape))
+                        print("mask1: steps from output in colvar = {}".format(mask1.sum()))
+                        print("mask2: steps from colvar in output = {}".format(mask2.sum()))
+                    try:
+                        arr[mask1, -1] = carr[mask2, 1]
+                    except ValueError:
+                        #sometimes the first step in colvar when output.thermo begins doubles. make sure this is the case to continue
+                        if carr[mask2, 0][0] == carr[mask2, 0][1]:
+                            arr[mask1, -1] = carr[mask2, 1][1:]
+                        else:
+                            raise ValueError("Shape mismatch between thermo and colvar masks that isn't just repeat index.")
                 self.thermo[dctkey][csub].append((seed, arr))
         if seedavg:
             for k in self.thermo[dctkey].keys():

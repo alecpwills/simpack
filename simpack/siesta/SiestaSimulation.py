@@ -499,7 +499,26 @@ class SiestaSimulation(Simulation):
                 f.write('\n')
                 datarr[(s-1)*self.natoms:s*self.natoms].to_csv(f, sep=' ', index=False,
                        header=False) 
+    
+    def ANItoXYZ(self, outfile='sim.xyz'):
+        try:
+            df = self.ANI
+        except AttributeError:
+            print("self.ANI has not been loaded or implemented.")
+            raise AttributeError
+        ofile = os.path.join(self.path[0], outfile)
+        steps = self.ANI.STEP.unique()
+        assert not os.path.exists(ofile), "File {} already exists.".format(ofile)
+        with open(ofile, 'a') as f:
+            for istep in tqdm(steps, file=sys.stdout):
+                subdf = df[df.STEP == istep][['ATOM', 'X', 'Y', 'Z']]
+                nat = subdf.shape[0]
+                f.write(str(nat)+'\n')
+                f.write('\n')
+                subdf.to_csv(f, sep=' ', header=None, index=None, mode='a')
                 
+        
+    
     def output_coords(self, dir_path, step, form='siesta', overwrite=False, out_add=''):
         if step == -1:
             step = self.ANI.STEP.max()

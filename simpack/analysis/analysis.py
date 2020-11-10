@@ -49,6 +49,23 @@ def kB_units(units):
 #     ke = ka/kd
 #     return ka, ke
 
+def boltzmann_average(x, ens, temps, units='eV'):
+    x = np.array(x)
+    ens = np.array(ens)
+    temps = np.array(temps)
+    kb = kB_units(units)
+    beta = 1/(kb*temps)
+    boltz = np.exp(-beta*ens)
+    num = np.sum(x*boltz)
+    den = np.sum(boltz)
+    return num/den
+
+def boltzmann_average_sd(xarrs, ens, temps, units='eV'):
+    xmeans = [i.mean() for i in xarrs]
+    xsds = [i.std() for i in xarrs]
+    bamean = boltzmann_average(x=xmeans, ens=ens, temps=temps, units=units)
+    basd = boltzmann_average(x=xsds, ens=ens, temps=temps, units=units)
+    return (xmeans, xsds, bamean, basd)
 
 def pmf2d_int_1d(pmf, axis, temperature, units='kcal/mol'):
     vs = np.unique(pmf[:, axis])
@@ -91,6 +108,17 @@ def pbcwrap(arr, boxlen, dist=True):
     while arr[arr > bl2].sum() != 0:
         arr[arr > bl2] = arr[arr > bl2] - boxlen
     return arr
+
+# def nneighbors(arr1, arr2, nneigh=2, pbc=True, boxlen=None):
+#     inds = []
+#     for i in range(len(arr1)):
+#         v1 = arr1[i]
+#         ds = v1 - arr2
+#         if pbc:
+#             ds = pbcwrap(ds, boxlen, dist=True)
+#         tinds = []
+#         for ni in range(nneigh):
+
 
 def time_average(time, ys, cumulative=True):
     if cumulative == False: #? very different from expected
