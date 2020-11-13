@@ -1,4 +1,6 @@
 import numpy as np
+from os import path
+exp_dir = path.dirname(__file__)
 
 def Soper2013():
     '''
@@ -9,5 +11,5 @@ def Soper2013():
     arr : np.ndarray
         Columns are r_A, O_O, OOError, O_H, OHError, H_H, HHError.
     '''
-    arr = np.loadtxt('/home/awills/Documents/Research/exp/soper2013_dist_funcs', comments=['#','@'])
+    arr = np.loadtxt(path.join(exp_dir, 'soper2013_dist_funcs'), comments=['#','@'])
     return arr
