@@ -3,6 +3,17 @@ from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
 
+def ka_ke(xs, pmf, temp, units='eV', middle=3.0):
+    gr = np.exp(-pmf/(kB_units(units)*temp))
+    cipinds = np.where(xs < middle)[0]
+    ssipinds = np.where(xs >= middle)[0]
+    cipmax = np.where(gr[cipinds] == gr[cipinds].max())[0][0]
+    ssipmax = np.where(gr[ssipinds] == gr[ssipinds].max())[0][0]+cipinds[-1]
+    tsmin = np.where(gr[cipmax:ssipmax] == gr[cipmax:ssipmax].min())[0][0]+cipmax
+    ka = 4*np.pi*integrate.simps(gr*xs**2, xs)
+    kac = 4*np.pi*integrate.simps(gr[:tsmin]*xs[:tsmin]**2, xs[:tsmin])
+    kas = 4*np.pi*integrate.simps(gr[tsmin:]*xs[tsmin:]**2, xs[tsmin:])
+    return [(ka, kac, kas), (cipmax, ssipmax, tsmin)]
 
 def weighted_hist(xs, ws, bins=500, countsel=100):
     sums, edges = np.histogram(xs, bins=bins, weights=ws)
@@ -48,6 +59,18 @@ def kB_units(units):
 #                                  x=xsi[:r_ts_i])
 #     ke = ka/kd
 #     return ka, ke
+
+def boltzmann_arr_average(xarr, ens, temps, units='eV'):
+    xarr = np.array(xarr)
+    ens = np.array(ens)
+    temps = np.array(temps)
+    kb = kB_units(units)
+    beta = 1/(kb*temps)
+    boltz = np.exp(-beta*ens)
+    num = np.sum(xarr*boltz, axis=1)
+    den = np.sum(boltz)
+    return num/den
+
 
 def boltzmann_average(x, ens, temps, units='eV'):
     x = np.array(x)
