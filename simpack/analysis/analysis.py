@@ -3,6 +3,44 @@ from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
 
+# def coordN(x, y, ntarget, boxlen):
+#     rhon = ntarget/boxlen**3
+#     lastzero = np.where(y == 0)[0][-1]
+#     ymax1 = np.where(y[lastzero:] == y[lastzero:].max())[0][0]+lastzero
+#     ymin1 = np.where(y[ymax1:] == y[ymax1:].min())[0][0]+ymax1
+def coord_num(rdfx, rdfy, num, boxlen):
+    ''' returns CN1, shell1 rmax, shell2 rmax'''
+    rho_n = num/boxlen**3
+    lastzero = np.where(rdfy == 0)[0][-1]
+    shell1max = np.where(rdfy[lastzero:] == rdfy[lastzero:].max())[0].item() + lastzero
+    dx_zero_max = rdfx[shell1max]-rdfx[lastzero]
+    shell1min = int(np.where(rdfy[shell1max:] == rdfy[shell1max:].min())[0]+shell1max)
+    if rdfx[shell1min] > rdfx[lastzero]+2:
+        yd = np.diff(rdfy, prepend=0)
+        shell1min = np.where(yd[shell1max+1:] > 0)[0][0]+shell1max
+    y=rdfy[:shell1min+1]
+    x=rdfx[:shell1min+1]
+    print(dx_zero_max)
+    print("Solvation Shell Radius: {} to {}".format(rdfx[lastzero], rdfx[shell1min]))
+    return [rho_n*integrate.simps(y=4*np.pi*x**2*y, x=x), rdfx[shell1min], solvshell2rad(rdfx, rdfy, rdfx[shell1min], boxlen=boxlen)]
+
+def solvshell2rad(rdfx, rdfy, rdfx1min, boxlen):
+    ys = smooth(rdfy, 10)
+    ysel = argrelextrema(ys, np.less)[0]
+    if len(ysel) <= 1:
+        print('unable to find second minima')
+        return boxlen/2
+    else:
+        rdf2min = 0
+        i=0
+        while rdf2min < rdfx1min+2:
+            rdf2min = rdfx[ysel[i]]
+            i += 1
+            if i > len(ysel)-1:
+                break
+        return rdf2min
+
+
 def ka_ke(xs, pmf, temp, units='eV', middle=3.0):
     gr = np.exp(-pmf/(kB_units(units)*temp))
     cipinds = np.where(xs < middle)[0]
