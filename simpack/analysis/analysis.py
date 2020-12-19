@@ -261,6 +261,7 @@ def smooth(y, box_pts):
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
     y_smooth[:box_pts] = y[:box_pts]
+    y_smooth[-box_pts:] = y[-box_pts:]
     return y_smooth
 
 def pmf(forces, dists, temps, correct=True, interp='pmf'):
