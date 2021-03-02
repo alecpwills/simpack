@@ -2,12 +2,37 @@ import numpy as np
 from scipy import integrate, interpolate
 from scipy.optimize import leastsq
 from scipy.signal import argrelextrema
+import sys
+from tqdm import tqdm
 
 # def coordN(x, y, ntarget, boxlen):
 #     rhon = ntarget/boxlen**3
 #     lastzero = np.where(y == 0)[0][-1]
 #     ymax1 = np.where(y[lastzero:] == y[lastzero:].max())[0][0]+lastzero
 #     ymin1 = np.where(y[ymax1:] == y[ymax1:].min())[0][0]+ymax1
+def time_convergence_check_constf(forcedict, temp, tol=1e-6, keyscale=0.1, correct=False, interp='force', fconv=1):
+    keys = sorted([i for i in forcedict.keys()])
+    ds = np.array([float(i)*keyscale for i in sorted(list(forcedict.keys()))])
+    looplen = len(forcedict[keys[0]])
+    #ERR = 1e9
+    #do without while loop first, see how long
+    aerrs = []
+    aerrs.append(np.nan)
+    serrs = []
+    serrs.append(np.nan)
+    pmf0 = np.zeros_like(ds)
+    for STEP in tqdm(range(looplen), file=sys.stdout):
+        if STEP%5001 == 0:
+            continue
+        f = np.array([forcedict[k][:STEP+1].mean()*fconv for k in keys])
+        _, pmfS, _ = pmf(f, ds, temp, correct=correct, interp=interp)
+        err = pmfS - pmf0
+        aerrs.append(max(abs(err)))
+        serrs.append(sum(abs(err)))
+        pmf0 = pmfS
+    return (aerrs, serrs)
+
+
 def coord_num(rdfx, rdfy, num, boxlen):
     ''' returns CN1, shell1 rmax, shell2 rmax'''
     rho_n = num/boxlen**3
